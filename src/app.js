@@ -6,7 +6,8 @@ const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
-
+const productRoutes = require("./routes/productRoutes");
+const cartRoutes = require("./routes/cartRoutes");
 dotenv.config();
 
 const app = express();
@@ -24,7 +25,8 @@ app.use(morgan("dev"));
 app.use(express.json());
 
 app.use("/api/users", userRoutes);
-
+app.use("/api/products", productRoutes);
+app.use("/api/cart", cartRoutes);
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
