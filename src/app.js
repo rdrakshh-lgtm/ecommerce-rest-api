@@ -8,6 +8,8 @@ const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const productRoutes = require("./routes/productRoutes");
 const cartRoutes = require("./routes/cartRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const adminOrderRoutes = require("./routes/adminOrderRoutes");
 dotenv.config();
 
 const app = express();
@@ -27,6 +29,8 @@ app.use(express.json());
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/admin/orders", adminOrderRoutes);
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
