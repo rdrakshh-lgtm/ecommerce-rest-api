@@ -11,6 +11,19 @@ const createProduct = async (req, res) => {
             stock,
             image
         } = req.body;
+        if (!name || !description || !category || price === undefined) {
+            return res.status(400).json({
+                success: false,
+                message: "Name, description, category and price are required"
+            });
+        }
+
+        if (Number(price) < 0 || Number.isNaN(Number(price))) {
+            return res.status(400).json({
+                success: false,
+                message: "Price must be a valid non-negative number"
+            });
+        }
         if (stock !== undefined && (Number(stock) < 0 || !Number.isInteger(Number(stock)))) {
             return res.status(400).json({
                 success: false,
@@ -54,6 +67,52 @@ const getProducts = async (req, res) => {
             page = 1,
             limit = 10
         } = req.query;
+        const parsedMinPrice =
+            minPrice !== undefined ? Number(minPrice) : undefined;
+
+        const parsedMaxPrice =
+            maxPrice !== undefined ? Number(maxPrice) : undefined;
+
+        const parsedPage = Number(page);
+        const parsedLimit = Number(limit);
+
+        if (
+            (minPrice !== undefined && Number.isNaN(parsedMinPrice)) ||
+            (maxPrice !== undefined && Number.isNaN(parsedMaxPrice))
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Price filters must be valid numbers"
+            });
+        }
+
+        if (parsedMinPrice !== undefined && parsedMinPrice < 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Minimum price cannot be negative"
+            });
+        }
+
+        if (parsedMaxPrice !== undefined && parsedMaxPrice < 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Maximum price cannot be negative"
+            });
+        }
+
+        if (!Number.isInteger(parsedPage) || parsedPage < 1) {
+            return res.status(400).json({
+                success: false,
+                message: "Page must be a positive whole number"
+            });
+        }
+
+        if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
+            return res.status(400).json({
+                success: false,
+                message: "Limit must be between 1 and 100"
+            });
+        }
 
         const query = {
             isActive: true
@@ -80,11 +139,11 @@ const getProducts = async (req, res) => {
             query.price = {};
 
             if (minPrice !== undefined) {
-                query.price.$gte = Number(minPrice);
+                query.price.$gte = parsedMinPrice;
             }
 
             if (maxPrice !== undefined) {
-                query.price.$lte = Number(maxPrice);
+                query.price.$lte = parsedMaxPrice;
             }
         }
 
@@ -108,8 +167,8 @@ const getProducts = async (req, res) => {
         }
 
         // Pagination
-        const currentPage = Math.max(Number(page), 1);
-        const itemsPerPage = Math.min(Math.max(Number(limit), 1), 100);
+        const currentPage = parsedPage;
+        const itemsPerPage = parsedLimit;
         const skip = (currentPage - 1) * itemsPerPage;
 
         const totalProducts = await Product.countDocuments(query);
@@ -187,6 +246,14 @@ const updateProduct = async (req, res) => {
             image,
             isActive
         } = req.body;
+        if (price !== undefined) {
+            if (Number.isNaN(Number(price)) || Number(price) < 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Price must be a valid non-negative number"
+                });
+            }
+        }
         if (stock !== undefined && (Number(stock) < 0 || !Number.isInteger(Number(stock)))) {
             return res.status(400).json({
                 success: false,

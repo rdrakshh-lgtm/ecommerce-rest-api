@@ -4,6 +4,14 @@ const User = require("../models/User");
 const registerUser = async (req, res) => {
     try {
         const { name, email, password } = req.body;
+        const normalizedEmail = email?.trim().toLowerCase();
+
+        if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+            return res.status(400).json({
+                success: false,
+                message: "Please provide a valid email address"
+            });
+        }
 
         // Check required fields
         if (!name || !email || !password) {
@@ -22,7 +30,9 @@ const registerUser = async (req, res) => {
         }
 
         // Check if user already exists
-        const existingUser = await User.findOne({ email });
+        const existingUser = await User.findOne({
+            email: normalizedEmail
+        });
 
         if (existingUser) {
             return res.status(409).json({
@@ -37,7 +47,7 @@ const registerUser = async (req, res) => {
         // Create user
         const user = await User.create({
             name,
-            email,
+            email: normalizedEmail,
             password: hashedPassword
         });
 

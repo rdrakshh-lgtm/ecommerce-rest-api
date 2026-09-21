@@ -1,9 +1,12 @@
+const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
 
 // Place an order
 const createOrder = async (req, res) => {
+    const session = await mongoose.startSession();
+
     try {
         const { shippingAddress } = req.body;
 
@@ -14,92 +17,117 @@ const createOrder = async (req, res) => {
             });
         }
 
-        const cart = await Cart.findOne({
-            user: req.user.userId
-        }).populate("items.product");
+        let createdOrder;
 
-        if (!cart || cart.items.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: "Your cart is empty"
-            });
-        }
+        await session.withTransaction(async () => {
+            const cart = await Cart.findOne({
+                user: req.user.userId
+            })
+                .populate("items.product")
+                .session(session);
 
-        let totalAmount = 0;
-        const orderItems = [];
+            if (!cart || cart.items.length === 0) {
+                throw new Error("Your cart is empty");
+            }
 
-        // Validate stock and calculate total
-        for (const item of cart.items) {
-            const product = item.product;
+            let totalAmount = 0;
+            const orderItems = [];
 
-            if (!product || !product.isActive) {
-                return res.status(400).json({
-                    success: false,
-                    message: "One or more products are no longer available"
+            // Validate products and calculate total
+            for (const item of cart.items) {
+                const product = item.product;
+
+                if (!product || !product.isActive) {
+                    throw new Error(
+                        "One or more products are no longer available"
+                    );
+                }
+
+                if (item.quantity > product.stock) {
+                    throw new Error(
+                        `Insufficient stock for ${product.name}`
+                    );
+                }
+
+                const subtotal = product.price * item.quantity;
+
+                totalAmount += subtotal;
+
+                orderItems.push({
+                    product: product._id,
+                    name: product.name,
+                    price: product.price,
+                    quantity: item.quantity,
+                    subtotal
                 });
             }
 
-            if (item.quantity > product.stock) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Insufficient stock for ${product.name}`
-                });
+            // Reduce stock inside transaction
+            for (const item of cart.items) {
+                const product = await Product.findById(
+                    item.product._id
+                ).session(session);
+
+                if (!product || product.stock < item.quantity) {
+                    throw new Error(
+                        `Stock changed for ${item.product.name}. Please try again.`
+                    );
+                }
+
+                product.stock -= item.quantity;
+
+                await product.save({ session });
             }
 
-            const subtotal = product.price * item.quantity;
+            // Create order inside transaction
+            const orders = await Order.create(
+                [
+                    {
+                        user: req.user.userId,
+                        items: orderItems,
+                        totalAmount,
+                        shippingAddress: shippingAddress.trim()
+                    }
+                ],
+                { session }
+            );
 
-            totalAmount += subtotal;
+            createdOrder = orders[0];
 
-            orderItems.push({
-                product: product._id,
-                name: product.name,
-                price: product.price,
-                quantity: item.quantity,
-                subtotal
-            });
-        }
+            // Clear cart inside transaction
+            cart.items = [];
 
-        // Reduce stock
-        for (const item of cart.items) {
-            const product = await Product.findById(item.product._id);
-
-            if (!product || product.stock < item.quantity) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Stock changed for ${item.product.name}. Please try again.`
-                });
-            }
-
-            product.stock -= item.quantity;
-
-            await product.save();
-        }
-
-        // Create order
-        const order = await Order.create({
-            user: req.user.userId,
-            items: orderItems,
-            totalAmount,
-            shippingAddress: shippingAddress.trim()
+            await cart.save({ session });
         });
-
-        // Clear cart
-        cart.items = [];
-        await cart.save();
 
         res.status(201).json({
             success: true,
             message: "Order placed successfully",
-            order
+            order: createdOrder
         });
 
     } catch (error) {
         console.error("Create order error:", error.message);
 
+        if (
+            error.message === "Your cart is empty" ||
+            error.message.includes("Insufficient stock") ||
+            error.message.includes("no longer available") ||
+            error.message.includes("Stock changed")
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+
         res.status(500).json({
             success: false,
             message: "Server error while placing order"
         });
+
+    } finally {
+        await session.endSession();
     }
 };
 

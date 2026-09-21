@@ -11,21 +11,42 @@ const protect = (req, res, next) => {
             });
         }
 
-        const token = authHeader.split(" ")[1];
+        const token = authHeader.substring(7).trim();
+
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: "Authentication token is missing"
+            });
+        }
 
         const decoded = jwt.verify(
             token,
             process.env.JWT_SECRET
         );
 
+        if (!decoded.userId || !decoded.role) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid authentication token"
+            });
+        }
+
         req.user = decoded;
 
         next();
 
     } catch (error) {
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({
+                success: false,
+                message: "Authentication token has expired"
+            });
+        }
+
         return res.status(401).json({
             success: false,
-            message: "Invalid or expired token"
+            message: "Invalid authentication token"
         });
     }
 };
