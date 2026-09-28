@@ -10,12 +10,24 @@ const createOrder = async (req, res) => {
     try {
         const { shippingAddress } = req.body;
 
-        if (!shippingAddress || !shippingAddress.trim()) {
+        if (
+            !shippingAddress ||
+            typeof shippingAddress !== "string" ||
+            !shippingAddress.trim()
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "Shipping address is required"
+                message: "A valid shipping address is required"
             });
         }
+
+        if (shippingAddress.trim().length < 10) {
+            return res.status(400).json({
+                success: false,
+                message: "Shipping address must be at least 10 characters long"
+            });
+        }
+        
 
         let createdOrder;
 

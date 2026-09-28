@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Product = require("../models/Product");
 
 // Create Product - Admin only
@@ -198,9 +199,15 @@ const getProducts = async (req, res) => {
     }
 };
 
-// Get Single Product
 const getProductById = async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid product ID"
+            });
+        }
+
         const product = await Product.findById(req.params.id);
 
         if (!product || !product.isActive) {
@@ -214,6 +221,7 @@ const getProductById = async (req, res) => {
             success: true,
             product
         });
+
     } catch (error) {
         console.error("Get product error:", error.message);
 
@@ -223,7 +231,6 @@ const getProductById = async (req, res) => {
         });
     }
 };
-
 
 // Update Product - Admin only
 const updateProduct = async (req, res) => {
