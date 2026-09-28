@@ -12,7 +12,9 @@ const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const adminOrderRoutes = require("./routes/adminOrderRoutes");
 
-dotenv.config();
+dotenv.config({
+    path: process.env.NODE_ENV === "test" ? ".env.test" : ".env"
+});
 
 const app = express();
 
