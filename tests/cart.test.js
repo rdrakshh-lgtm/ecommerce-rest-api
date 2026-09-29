@@ -9,7 +9,6 @@ describe("Cart API", () => {
         const email = `cartuser${Date.now()}@example.com`;
         const password = "Test@12345";
 
-        // Create customer
         const hashedPassword = await bcrypt.hash(password, 12);
 
         await User.create({
@@ -19,7 +18,6 @@ describe("Cart API", () => {
             role: "customer"
         });
 
-        // Login
         const loginResponse = await request(app)
             .post("/api/auth/login")
             .send({
@@ -27,9 +25,10 @@ describe("Cart API", () => {
                 password
             });
 
+        expect(loginResponse.statusCode).toBe(200);
+
         const token = loginResponse.body.token;
 
-        // Create product using admin
         const adminEmail = `cartadmin${Date.now()}@example.com`;
         const adminPassword = "Admin@12345";
         const adminHash = await bcrypt.hash(adminPassword, 12);
@@ -48,6 +47,8 @@ describe("Cart API", () => {
                 password: adminPassword
             });
 
+        expect(adminLogin.statusCode).toBe(200);
+
         const adminToken = adminLogin.body.token;
 
         const productResponse = await request(app)
@@ -56,14 +57,15 @@ describe("Cart API", () => {
             .send({
                 name: "Cart Test Product",
                 description: "Product for cart testing",
-                price: 1000,
+                price: 2000,
                 category: "Test",
                 stock: 10
             });
 
+        expect(productResponse.statusCode).toBe(201);
+
         const productId = productResponse.body.product._id;
 
-        // Add product to cart
         const response = await request(app)
             .post("/api/cart")
             .set("Authorization", `Bearer ${token}`)
@@ -77,6 +79,8 @@ describe("Cart API", () => {
         expect(response.body.cart).toBeDefined();
         expect(response.body.cart.items.length).toBeGreaterThan(0);
     }, 15000);
+
+
     test("GET /api/cart should return the user's cart", async () => {
         const email = `getcart${Date.now()}@example.com`;
         const password = "Test@12345";
@@ -92,7 +96,12 @@ describe("Cart API", () => {
 
         const loginResponse = await request(app)
             .post("/api/auth/login")
-            .send({ email, password });
+            .send({
+                email,
+                password
+            });
+
+        expect(loginResponse.statusCode).toBe(200);
 
         const token = loginResponse.body.token;
 
@@ -103,8 +112,12 @@ describe("Cart API", () => {
         expect(response.statusCode).toBe(200);
         expect(response.body.success).toBe(true);
         expect(response.body).toHaveProperty("cart");
+        expect(response.body.cart).toHaveProperty("items");
+        expect(Array.isArray(response.body.cart.items)).toBe(true);
     });
-    test("PUT /api/cart/:productId should update cart quantity", async () => {
+
+
+    test("PUT /api/cart should update cart quantity", async () => {
         const email = `updatecart${Date.now()}@example.com`;
         const password = "Test@12345";
 
@@ -119,7 +132,12 @@ describe("Cart API", () => {
 
         const loginResponse = await request(app)
             .post("/api/auth/login")
-            .send({ email, password });
+            .send({
+                email,
+                password
+            });
+
+        expect(loginResponse.statusCode).toBe(200);
 
         const token = loginResponse.body.token;
 
@@ -141,6 +159,8 @@ describe("Cart API", () => {
                 password: adminPassword
             });
 
+        expect(adminLogin.statusCode).toBe(200);
+
         const adminToken = adminLogin.body.token;
 
         const productResponse = await request(app)
@@ -154,10 +174,11 @@ describe("Cart API", () => {
                 stock: 20
             });
 
+        expect(productResponse.statusCode).toBe(201);
+
         const productId = productResponse.body.product._id;
 
-        // Add product
-        await request(app)
+        const addResponse = await request(app)
             .post("/api/cart")
             .set("Authorization", `Bearer ${token}`)
             .send({
@@ -165,15 +186,19 @@ describe("Cart API", () => {
                 quantity: 2
             });
 
-        // Update quantity
+        expect(addResponse.statusCode).toBe(200);
+
         const response = await request(app)
             .put("/api/cart")
             .set("Authorization", `Bearer ${token}`)
             .send({
+                productId,
                 quantity: 5
             });
 
         expect(response.statusCode).toBe(200);
         expect(response.body.success).toBe(true);
+        expect(response.body.message).toBe("Cart quantity updated");
     });
+
 });

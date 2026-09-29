@@ -84,6 +84,7 @@ const addToCart = async (req, res) => {
             message: "Product added to cart",
             cart
         });
+
     } catch (error) {
         console.error("Add to cart error:", error.message);
 
@@ -116,6 +117,7 @@ const getCart = async (req, res) => {
             success: true,
             cart
         });
+
     } catch (error) {
         console.error("Get cart error:", error.message);
 
@@ -194,6 +196,7 @@ const updateCartItem = async (req, res) => {
             message: "Cart quantity updated",
             cart
         });
+
     } catch (error) {
         console.error("Update cart error:", error.message);
 
@@ -242,6 +245,7 @@ const removeFromCart = async (req, res) => {
             message: "Product removed from cart",
             cart
         });
+
     } catch (error) {
         console.error("Remove from cart error:", error.message);
 
@@ -275,6 +279,7 @@ const clearCart = async (req, res) => {
             success: true,
             message: "Cart cleared successfully"
         });
+
     } catch (error) {
         console.error("Clear cart error:", error.message);
 
