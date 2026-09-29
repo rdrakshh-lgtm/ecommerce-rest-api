@@ -200,5 +200,157 @@ describe("Cart API", () => {
         expect(response.body.success).toBe(true);
         expect(response.body.message).toBe("Cart quantity updated");
     });
+    test("DELETE /api/cart/:productId should remove product from cart", async () => {
+    const email = `removecart${Date.now()}@example.com`;
+    const password = "Test@12345";
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    await User.create({
+        name: "Remove Cart User",
+        email,
+        password: hashedPassword,
+        role: "customer"
+    });
+
+    const loginResponse = await request(app)
+        .post("/api/auth/login")
+        .send({
+            email,
+            password
+        });
+
+    const token = loginResponse.body.token;
+
+    const adminEmail = `removeadmin${Date.now()}@example.com`;
+    const adminPassword = "Admin@12345";
+    const adminHash = await bcrypt.hash(adminPassword, 12);
+
+    await User.create({
+        name: "Remove Cart Admin",
+        email: adminEmail,
+        password: adminHash,
+        role: "admin"
+    });
+
+    const adminLogin = await request(app)
+        .post("/api/auth/login")
+        .send({
+            email: adminEmail,
+            password: adminPassword
+        });
+
+    const adminToken = adminLogin.body.token;
+
+    const productResponse = await request(app)
+        .post("/api/products")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+            name: "Remove Cart Product",
+            description: "Product for remove cart testing",
+            price: 1200,
+            category: "Test",
+            stock: 10
+        });
+
+    expect(productResponse.statusCode).toBe(201);
+
+    const productId = productResponse.body.product._id;
+
+    const addResponse = await request(app)
+        .post("/api/cart")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+            productId,
+            quantity: 2
+        });
+
+    expect(addResponse.statusCode).toBe(200);
+
+    const response = await request(app)
+        .delete(`/api/cart/${productId}`)
+        .set("Authorization", `Bearer ${token}`);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe("Product removed from cart");
+});
+
+
+    test("DELETE /api/cart should clear the user's cart", async () => {
+        const email = `clearcart${Date.now()}@example.com`;
+        const password = "Test@12345";
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        await User.create({
+            name: "Clear Cart User",
+            email,
+            password: hashedPassword,
+            role: "customer"
+        });
+
+        const loginResponse = await request(app)
+            .post("/api/auth/login")
+            .send({
+                email,
+                password
+            });
+
+        const token = loginResponse.body.token;
+
+        const adminEmail = `clearadmin${Date.now()}@example.com`;
+        const adminPassword = "Admin@12345";
+        const adminHash = await bcrypt.hash(adminPassword, 12);
+
+        await User.create({
+            name: "Clear Cart Admin",
+            email: adminEmail,
+            password: adminHash,
+            role: "admin"
+        });
+
+        const adminLogin = await request(app)
+            .post("/api/auth/login")
+            .send({
+                email: adminEmail,
+                password: adminPassword
+            });
+
+        const adminToken = adminLogin.body.token;
+
+        const productResponse = await request(app)
+            .post("/api/products")
+            .set("Authorization", `Bearer ${adminToken}`)
+            .send({
+                name: "Clear Cart Product",
+                description: "Product for clear cart testing",
+                price: 1800,
+                category: "Test",
+                stock: 10
+            });
+
+        expect(productResponse.statusCode).toBe(201);
+
+        const productId = productResponse.body.product._id;
+
+        const addResponse = await request(app)
+            .post("/api/cart")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                productId,
+                quantity: 2
+            });
+
+        expect(addResponse.statusCode).toBe(200);
+
+        const response = await request(app)
+            .delete("/api/cart")
+            .set("Authorization", `Bearer ${token}`);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.message).toBe("Cart cleared successfully");
+    });
 
 });
