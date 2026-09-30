@@ -1,4 +1,6 @@
 const request = require("supertest");
+const jwt = require("jsonwebtoken");
+
 const app = require("../src/app");
 
 describe("Authentication API", () => {
@@ -53,7 +55,6 @@ describe("Authentication API", () => {
         const email = `protecteduser${Date.now()}@example.com`;
         const password = "Test@12345";
 
-        // Register user
         await request(app)
             .post("/api/auth/register")
             .send({
@@ -62,7 +63,6 @@ describe("Authentication API", () => {
                 password
             });
 
-        // Login and get JWT
         const loginResponse = await request(app)
             .post("/api/auth/login")
             .send({
@@ -72,7 +72,6 @@ describe("Authentication API", () => {
 
         const token = loginResponse.body.token;
 
-        // Access protected route
         const response = await request(app)
             .get("/api/users/me")
             .set("Authorization", `Bearer ${token}`);
@@ -81,6 +80,7 @@ describe("Authentication API", () => {
         expect(response.body.success).toBe(true);
         expect(response.body.user.email).toBe(email);
     });
+
     test("GET /api/users/me should reject unauthenticated request", async () => {
         const response = await request(app)
             .get("/api/users/me");
@@ -89,6 +89,7 @@ describe("Authentication API", () => {
         expect(response.body.success).toBe(false);
         expect(response.body.message).toBe("Authentication required");
     });
+
     test("GET /api/users/admin-test should reject customer user", async () => {
         const email = `customer${Date.now()}@example.com`;
         const password = "Test@12345";
@@ -119,4 +120,38 @@ describe("Authentication API", () => {
         expect(response.body.message)
             .toBe("Access denied. Insufficient permissions.");
     });
+
+    test("GET /api/users/me should reject invalid JWT", async () => {
+        const response = await request(app)
+            .get("/api/users/me")
+            .set("Authorization", "Bearer invalid.jwt.token");
+
+        expect(response.statusCode).toBe(401);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("Invalid authentication token");
+    });
+
+    test("GET /api/users/me should reject expired JWT", async () => {
+        const expiredToken = jwt.sign(
+            {
+                userId: "507f1f77bcf86cd799439011",
+                role: "customer"
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: "-1s"
+            }
+        );
+
+        const response = await request(app)
+            .get("/api/users/me")
+            .set("Authorization", `Bearer ${expiredToken}`);
+
+        expect(response.statusCode).toBe(401);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("Authentication token has expired");
+    });
+
 });

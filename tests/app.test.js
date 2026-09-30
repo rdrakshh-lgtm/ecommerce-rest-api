@@ -11,3 +11,18 @@ describe("Health Check API", () => {
         expect(response.body.message).toBe("E-commerce API is running");
     });
 });
+
+describe("Security Middleware", () => {
+    test("GET /health should include Helmet security headers", async () => {
+        const response = await request(app)
+            .get("/health");
+
+        expect(response.headers).toHaveProperty("x-content-type-options");
+        expect(response.headers["x-content-type-options"]).toBe("nosniff");
+
+        expect(response.headers).toHaveProperty("x-frame-options");
+        expect(response.headers["x-frame-options"]).toBe("SAMEORIGIN");
+
+        expect(response.headers).toHaveProperty("content-security-policy");
+    });
+});
