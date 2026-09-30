@@ -203,4 +203,179 @@ describe("Product API", () => {
         expect(response.statusCode).toBe(200);
         expect(response.body.success).toBe(true);
     });
+        test("POST /api/products should reject negative price", async () => {
+        const email = `pricevalidation${Date.now()}@example.com`;
+        const password = "Admin@12345";
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        await User.create({
+            name: "Price Validation Admin",
+            email,
+            password: hashedPassword,
+            role: "admin"
+        });
+
+        const loginResponse = await request(app)
+            .post("/api/auth/login")
+            .send({
+                email,
+                password
+            });
+
+        const token = loginResponse.body.token;
+
+        const response = await request(app)
+            .post("/api/products")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Invalid Price Product",
+                description: "Product with invalid price",
+                price: -100,
+                category: "Test",
+                stock: 10
+            });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("Price must be a valid non-negative number");
+    });
+
+    test("POST /api/products should reject invalid price", async () => {
+        const email = `invalidprice${Date.now()}@example.com`;
+        const password = "Admin@12345";
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        await User.create({
+            name: "Invalid Price Admin",
+            email,
+            password: hashedPassword,
+            role: "admin"
+        });
+
+        const loginResponse = await request(app)
+            .post("/api/auth/login")
+            .send({
+                email,
+                password
+            });
+
+        const token = loginResponse.body.token;
+
+        const response = await request(app)
+            .post("/api/products")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Invalid Price Product",
+                description: "Product with invalid price",
+                price: "not-a-number",
+                category: "Test",
+                stock: 10
+            });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("Price must be a valid non-negative number");
+    });
+
+    test("POST /api/products should reject negative stock", async () => {
+        const email = `stockvalidation${Date.now()}@example.com`;
+        const password = "Admin@12345";
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        await User.create({
+            name: "Stock Validation Admin",
+            email,
+            password: hashedPassword,
+            role: "admin"
+        });
+
+        const loginResponse = await request(app)
+            .post("/api/auth/login")
+            .send({
+                email,
+                password
+            });
+
+        const token = loginResponse.body.token;
+
+        const response = await request(app)
+            .post("/api/products")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Invalid Stock Product",
+                description: "Product with invalid stock",
+                price: 1000,
+                category: "Test",
+                stock: -5
+            });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("Stock must be a non-negative whole number");
+    });
+
+    test("POST /api/products should reject decimal stock", async () => {
+        const email = `decimalstock${Date.now()}@example.com`;
+        const password = "Admin@12345";
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        await User.create({
+            name: "Decimal Stock Admin",
+            email,
+            password: hashedPassword,
+            role: "admin"
+        });
+
+        const loginResponse = await request(app)
+            .post("/api/auth/login")
+            .send({
+                email,
+                password
+            });
+
+        const token = loginResponse.body.token;
+
+        const response = await request(app)
+            .post("/api/products")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Decimal Stock Product",
+                description: "Product with decimal stock",
+                price: 1000,
+                category: "Test",
+                stock: 5.5
+            });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("Stock must be a non-negative whole number");
+    });
+
+    test("GET /api/products should reject invalid page", async () => {
+        const response = await request(app)
+            .get("/api/products?page=0");
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("Page must be a positive whole number");
+    });
+
+    test("GET /api/products should reject invalid limit", async () => {
+        const response = await request(app)
+            .get("/api/products?limit=101");
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("Limit must be between 1 and 100");
+    });
 });
