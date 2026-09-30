@@ -35,6 +35,10 @@ const limiter = rateLimit({
     }
 });
 
+if (process.env.NODE_ENV !== "test") {
+    app.use(limiter);
+}
+
 app.use(limiter);
 
 // ===============================
