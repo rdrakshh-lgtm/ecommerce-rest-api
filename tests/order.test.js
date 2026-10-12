@@ -335,5 +335,81 @@ describe("Order API", () => {
 
         expect(cancelResponse.body.order.status).toBe("cancelled");
     }, 20000);
+        test("POST /api/orders should reject a missing shipping address", async () => {
+        const email = `missingaddress${Date.now()}@example.com`;
+        const password = "Test@12345";
 
+        await User.create({
+            name: "Missing Address User",
+            email,
+            password: await bcrypt.hash(password, 12),
+            role: "customer"
+        });
+
+        const loginResponse = await request(app)
+            .post("/api/auth/login")
+            .send({ email, password });
+
+        const response = await request(app)
+            .post("/api/orders")
+            .set("Authorization", `Bearer ${loginResponse.body.token}`)
+            .send({});
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("A valid shipping address is required");
+    });
+
+    test("POST /api/orders should reject a non-string shipping address", async () => {
+        const email = `badaddress${Date.now()}@example.com`;
+        const password = "Test@12345";
+
+        await User.create({
+            name: "Invalid Address User",
+            email,
+            password: await bcrypt.hash(password, 12),
+            role: "customer"
+        });
+
+        const loginResponse = await request(app)
+            .post("/api/auth/login")
+            .send({ email, password });
+
+        const response = await request(app)
+            .post("/api/orders")
+            .set("Authorization", `Bearer ${loginResponse.body.token}`)
+            .send({ shippingAddress: 12345 });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("A valid shipping address is required");
+    });
+
+    test("POST /api/orders should reject a whitespace-only shipping address", async () => {
+        const email = `blankaddress${Date.now()}@example.com`;
+        const password = "Test@12345";
+
+        await User.create({
+            name: "Blank Address User",
+            email,
+            password: await bcrypt.hash(password, 12),
+            role: "customer"
+        });
+
+        const loginResponse = await request(app)
+            .post("/api/auth/login")
+            .send({ email, password });
+
+        const response = await request(app)
+            .post("/api/orders")
+            .set("Authorization", `Bearer ${loginResponse.body.token}`)
+            .send({ shippingAddress: "     " });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("A valid shipping address is required");
+    });
 });

@@ -6,7 +6,7 @@ const addToCart = async (req, res) => {
     try {
         const { productId, quantity } = req.body;
 
-        if (!productId || !quantity) {
+        if (!productId || quantity === undefined || quantity === null) {
             return res.status(400).json({
                 success: false,
                 message: "Product ID and quantity are required"
@@ -22,12 +22,7 @@ const addToCart = async (req, res) => {
 
         const product = await Product.findById(productId);
 
-        if (!product || !product.isActive) {
-            return res.status(404).json({
-                success: false,
-                message: "Product not found"
-            });
-        }
+        
 
         if (product.stock < quantity) {
             return res.status(400).json({

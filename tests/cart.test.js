@@ -3,6 +3,31 @@ const bcrypt = require("bcryptjs");
 const app = require("../src/app");
 const User = require("../src/models/User");
 
+async function getCartTestToken() {
+    const email = `cartvalidation${Date.now()}${Math.random()}@example.com`;
+    const password = "Test@12345";
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    await User.create({
+        name: "Cart Validation User",
+        email,
+        password: hashedPassword,
+        role: "customer"
+    });
+
+    const loginResponse = await request(app)
+        .post("/api/auth/login")
+        .send({
+            email,
+            password
+        });
+
+    expect(loginResponse.statusCode).toBe(200);
+
+    return loginResponse.body.token;
+}
+
 describe("Cart API", () => {
 
     test("POST /api/cart should add a product to cart", async () => {
@@ -352,5 +377,82 @@ describe("Cart API", () => {
         expect(response.body.success).toBe(true);
         expect(response.body.message).toBe("Cart cleared successfully");
     });
+        test("POST /api/cart should reject missing product ID", async () => {
+        const token = await getCartTestToken();
 
+        const response = await request(app)
+            .post("/api/cart")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                quantity: 2
+            });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message)
+            .toBe("Product ID and quantity are required");
+    });
+
+    test("POST /api/cart should reject missing quantity", async () => {
+        const token = await getCartTestToken();
+
+        const response = await request(app)
+            .post("/api/cart")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                productId: "507f1f77bcf86cd799439011"
+            });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message)
+            .toBe("Product ID and quantity are required");
+    });
+
+    test("POST /api/cart should reject zero quantity", async () => {
+        const token = await getCartTestToken();
+
+        const response = await request(app)
+            .post("/api/cart")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                productId: "507f1f77bcf86cd799439011",
+                quantity: 0
+            });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message)
+            .toBe("Quantity must be a positive whole number");
+    });
+
+    test("POST /api/cart should reject negative quantity", async () => {
+        const token = await getCartTestToken();
+
+        const response = await request(app)
+            .post("/api/cart")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                productId: "507f1f77bcf86cd799439011",
+                quantity: -2
+            });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message)
+            .toBe("Quantity must be a positive whole number");
+    });
+
+    test("POST /api/cart should reject decimal quantity", async () => {
+        const token = await getCartTestToken();
+
+        const response = await request(app)
+            .post("/api/cart")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                productId: "507f1f77bcf86cd799439011",
+                quantity: 1.5
+            });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message)
+            .toBe("Quantity must be a positive whole number");
+    });
 });
